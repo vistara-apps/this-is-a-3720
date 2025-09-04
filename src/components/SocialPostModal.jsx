@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { X, Instagram, Music, Check, AlertCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import socialMediaService from '../services/socialMedia'
+import subscriptionService from '../services/stripe'
 
 export default function SocialPostModal({ variation, onClose }) {
   const { state, dispatch } = useApp()
@@ -16,21 +18,42 @@ export default function SocialPostModal({ variation, onClose }) {
   const handlePost = async () => {
     if (!selectedAccount) return
     
+    // Check usage limits
+    if (subscriptionService.hasReachedLimit(state.user, 'posts')) {
+      alert('You have reached your posting limit. Please upgrade your plan.')
+      return
+    }
+    
     setIsPosting(true)
     
-    // Simulate posting
-    setTimeout(() => {
-      setIsPosting(false)
-      setPosted(true)
-      dispatch({ 
-        type: 'UPDATE_USAGE', 
-        payload: { posts: state.user.usage.posts + 1 }
+    try {
+      // Use real social media service for posting
+      const result = await socialMediaService.simulatePost({
+        platform: variation.platform,
+        imageUrl: variation.url,
+        caption,
+        accountHandle: selectedAccount
       })
-      
-      setTimeout(() => {
-        onClose()
-      }, 2000)
-    }, 2000)
+
+      if (result.success) {
+        setPosted(true)
+        dispatch({ 
+          type: 'UPDATE_USAGE', 
+          payload: { posts: state.user.usage.posts + 1 }
+        })
+        
+        setTimeout(() => {
+          onClose()
+        }, 2000)
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Posting failed:', error)
+      alert(`Failed to post: ${error.message}`)
+    } finally {
+      setIsPosting(false)
+    }
   }
 
   const PlatformIcon = variation.platform === 'instagram' ? Instagram : Music
