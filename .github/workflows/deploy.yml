@@ -33,22 +33,24 @@ jobs:
         NODE_OPTIONS: --max-old-space-size=4096
         
     - name: Deploy to Vercel (Production)
-      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && secrets.VERCEL_TOKEN != ''
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-args: '--prod'
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      continue-on-error: true
         
     - name: Deploy to Vercel (Preview)
-      if: (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master') && secrets.VERCEL_TOKEN != ''
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-args: '--no-wait'
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      continue-on-error: true
         
     - name: Build Success Notification
       if: github.event_name == 'pull_request'
@@ -56,7 +58,8 @@ jobs:
       with:
         script: |
           const buildStatus = '✅ **Build Successful!**';
-          const message = secrets.VERCEL_TOKEN ? 
+          const hasVercelSecrets = '${{ secrets.VERCEL_TOKEN }}' !== '';
+          const message = hasVercelSecrets ? 
             `${buildStatus}\n\n🚀 Vercel deployment in progress...` :
             `${buildStatus}\n\n📝 **Note:** To enable automatic Vercel deployments, configure the following repository secrets:\n- \`VERCEL_TOKEN\`\n- \`VERCEL_ORG_ID\`\n- \`VERCEL_PROJECT_ID\``;
           
